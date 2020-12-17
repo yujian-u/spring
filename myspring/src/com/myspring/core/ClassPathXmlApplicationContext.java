@@ -101,7 +101,6 @@ public class ClassPathXmlApplicationContext implements ApplicationContext {
         }
         return results;
     }
-//kkkkkkkkkkkkkkkkkkkk
     @Override
     public Object getBean(String beanId) {
         Object result = null;
