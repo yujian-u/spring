@@ -1,10 +1,11 @@
 package com.myspring.core;
 
 import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
 
 import java.io.InputStream;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -59,21 +60,58 @@ public class ClassPathXmlApplicationContext implements ApplicationContext {
         return beans;
     }
 
-    public static void main(String[] args) throws Exception {
-        ClassPathXmlApplicationContext cpxa = new ClassPathXmlApplicationContext();
-        Map<String,EntityBean> beans = cpxa.springXmlParser();
-        for(Map.Entry<String,EntityBean> entry:beans.entrySet()){
-            System.out.println(entry.getKey());
-            System.out.println(entry.getValue());
-            System.out.println("***********************************");
-        }
-    }
+//    public static void main(String[] args) throws Exception {
+//        ClassPathXmlApplicationContext cpxa = new ClassPathXmlApplicationContext();
+//        Map<String,EntityBean> beansInfo = cpxa.springXmlParser();
+//       Map<String,Object> results = cpxa.getIOC(beansInfo);
+//       for(Map.Entry<String,Object> result:results.entrySet()){
+//           System.out.println(result.getKey());
+//           System.out.println(result.getValue());
+//       }
+//    }
 
     //2-根据解析来的信息，通过反射返程对象的组装assemble
+    public Map<String,Object> getIOC(Map<String, EntityBean> beansInfo) throws Exception {
+        Map<String,Object> results = new HashMap<String,Object>();
+        for(Map.Entry<String,EntityBean> beanInfo:beansInfo.entrySet()){
+            String resultId = beanInfo.getKey();//生成key值
+            EntityBean  bean = beanInfo.getValue();
+            String className = bean.getClassName();//class
+            Map<String,String> props = bean.getProps();//property的集合
+            //反射 -- 输入字符串，返回对象
+            Class clazz = Class.forName(className);
+            Object obj = clazz.newInstance();
+            for(Map.Entry<String,String> prop:props.entrySet()){
+                String propName = prop.getKey();
+                String propValue = prop.getValue();
+                StringBuilder buffer = new StringBuilder("set");
+                buffer.append(propName.substring(0,1).toUpperCase());
+                buffer.append(propName.substring(1));
+                String setterMethodName = buffer.toString();
+                Field field = clazz.getDeclaredField(propName);
+                Method setMethod = clazz.getDeclaredMethod(setterMethodName,field.getType());
+                if("int".equals(field.getType().getName())){
+                    setMethod.invoke(obj,Integer.parseInt(propValue));
+                }else if("java.lang.String".equals(field.getType().getName())){
+                    setMethod.invoke(obj,propValue);
+                }
+            }
+            results.put(resultId,obj);
 
+        }
+        return results;
+    }
 
     @Override
     public Object getBean(String beanId) {
-        return null;
+        Object result = null;
+        try {
+            Map<String,EntityBean> beansInfo = springXmlParser();
+            Map<String,Object> results = getIOC(beansInfo);
+            result = results.get(beanId);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return result;
     }
 }
